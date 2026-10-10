@@ -1,9 +1,9 @@
 .env
-__pycahche__/
+__pycache__/
 .pytest_cache/
 .venv/
 data/raw/
 data/vectors
-src/rag/vestor_store/
+src/rag/vecStor_store/
 
 
