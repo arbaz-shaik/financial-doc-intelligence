@@ -9,12 +9,12 @@ def test():
     print (f"total chunks {len(chunks)}")
 
 
-    print(chunks[1000]["text"][:200])
-    print(chunks[1000]["company"],chunks[500]["source"])
-    print(chunks[1500]["text"][:200])
-    print(chunks[1500]["company"],chunks[500]["source"])
-    print(chunks[500]["text"][:200])
-    print(chunks[500]["company"],chunks[500]["source"])
+    print(chunks[len(chunks) // 2]["text"][:200])
+    print(chunks[len(chunks) // 2]["company"], chunks[len(chunks) // 2]["source"])
+    print(chunks[-1]["text"][:200])
+    print(chunks[-1]["company"], chunks[-1]["source"])
+    print(chunks[0]["text"][:200])
+    print(chunks[0]["company"], chunks[0]["source"])
 
     embed = Embedder()
 
