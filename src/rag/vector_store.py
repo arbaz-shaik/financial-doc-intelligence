@@ -22,7 +22,7 @@ class VectorStore:
         "section": chunk.get("section") or "unknown"
     
             })
-        self.collection.add(
+        self.collection.upsert(
             ids= ids,
             documents = documents,
             metadatas= metadatas,

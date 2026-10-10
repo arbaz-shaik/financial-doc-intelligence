@@ -11,6 +11,7 @@ class Test_chunk:
         chunk_size=521
         metadata = {
             "source": "sec",
+            "doc_id": "test-doc",
             "company": "AAPL",
             "doc_type": "10-K",
             "date": "2025-09-27",
@@ -25,6 +26,7 @@ class Test_chunk:
         text = "some long text " * 100
         metadata = {
             "source": "sec",
+            "doc_id": "test-doc",
             "company": "AAPL",
             "doc_type": "10-K",
             "date": "2025-09-27",
@@ -46,6 +48,7 @@ class Test_chunk:
         chunk_overlap=50
         metadata = {
             "source": "sec",
+            "doc_id": "test-doc",
             "company": "AAPL",
             "doc_type": "10-K",
             "date": "2025-09-27",
@@ -63,6 +66,7 @@ class Test_chunk:
         chunk_overlap = 50
         metadata = {
             "source": "sec",
+            "doc_id": "test-doc",
             "company": "AAPL",
             "doc_type": "10-K",
             "date": "2025-09-27",
