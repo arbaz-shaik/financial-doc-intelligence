@@ -53,7 +53,7 @@ User Question
 
 ### Phase 3 - RAG Q&A (Days 15-22)
 **What it does:** Embeds questions using sentence-transformers, searches ChromaDB for relevant chunks, reranks results using LLM-based relevance scoring, generates cited answers grounded in retrieved context.
-**Tech:** sentence-transformers (all-MiniLM-L6-v2), ChromaDB, Groq (llama-3.3-70b-versatile), LLM-based reranker.
+**Tech:** sentence-transformers (all-MiniLM-L6-v2), ChromaDB, Groq (openai/gpt-oss-120b), LLM-based reranker.
 **Hard part:** Implementing complex metadata filtering with `$and` conditions in ChromaDB, and building the reranker. Some chunks appear similar on the surface but provide no useful context for the actual question.
 
 ### Phase 4 - LangGraph Agent (Days 23-28)
@@ -113,7 +113,7 @@ User Question
 git clone https://github.com/your-username/financial-doc-intelligence.git
 cd financial-doc-intelligence
 python -m venv .venv
-.venv\Scripts\activate        # Windows
+make test      # Windows
 pip install -r requirements.txt
 ```
 
@@ -132,4 +132,4 @@ make test
 
 ## Tech Stack
 
-Python 3.11 · FastAPI · Pydantic · LangGraph · ChromaDB · sentence-transformers · Groq (llama-3.3-70b) · BeautifulSoup4 · httpx · pytest · ruff
+Python 3.11 · FastAPI · Pydantic · LangGraph · ChromaDB · sentence-transformers · Groq (openai/gpt-oss-120b) · BeautifulSoup4 · httpx · pytest · ruff
