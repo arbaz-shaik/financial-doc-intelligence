@@ -1,12 +1,10 @@
 from groq import Groq
-from dotenv import load_dotenv
-import os
-load_dotenv()
+from src.config import settings
 
 class LLM:
-    def __init__(self, model : str = "openai/gpt-oss-120b"):
-        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        self.model = model
+    def __init__(self, model : str = settings.model_name):
+        self.client = Groq(api_key= settings.groq_api_key)
+        self.model =  model
 
     def generate(self, system_prompt : str , user_prompt : str, temp: float = 0.1)->str:
         response = self.client.chat.completions.create(
