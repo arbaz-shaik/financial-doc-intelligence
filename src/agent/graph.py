@@ -28,9 +28,25 @@ workflow.add_edge("risk_flagger_node",END)
 
 app = workflow.compile()
 
-initial_state ={
-    "question":"What are Apple's key risk factors in their latest 10-K filing?",
+
+if __name__ == "__main__":
+    initial_state = {
+    "question": "What are Apple's key risk factors in their latest 10-K filing?",
     "top_k": 4,
     "source_filter": None,
-    "date_from": None
+    "date_from": None,
+    "embed_question": [],
+    "context": "",
+    "sources": [],
+    "answer": "",
+    "route": "",
+    "risk_flags": [],
+    "retrieved_chunks": [],
+    "chat_history": []
 }
+    result = app.invoke(initial_state)
+
+    print("Route:", result["route"])
+    print("Answer:", result["answer"])
+    print("Sources:", len(result["sources"]))
+    print("Risk flags:", result["risk_flags"])
