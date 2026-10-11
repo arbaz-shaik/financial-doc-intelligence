@@ -1,0 +1,13 @@
+.env
+.venv/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+data/
+.git/
+.vscode/
+tests/
+scripts/
+docs/
+requirements.backup.txt
