@@ -3,7 +3,9 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Copy dependencies first for better caching
+# CPU-only torch (no CUDA). Version must match requirements.txt
+RUN pip install --no-cache-dir torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
