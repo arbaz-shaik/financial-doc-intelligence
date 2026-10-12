@@ -1,9 +1,37 @@
+
 import chromadb
+from src.config import settings
+
+
 
 class VectorStore:
-    def __init__(self):
-        self.client = chromadb.PersistentClient(path="./data/vectors")
-        self.collection = self.client.get_or_create_collection(name="documents", metadata={"hnsw:space": "cosine"})
+    def __init__(
+        self,
+        chroma_mode: str = settings.chroma_mode,
+        chroma_host: str = settings.chroma_host,
+        chroma_port: int = settings.chroma_port,
+        chroma_path: str = settings.chroma_path,
+    ):
+        if chroma_mode == "local":
+            self.client = chromadb.PersistentClient(
+                path=chroma_path
+            )
+        elif chroma_mode == "http":
+            self.client = chromadb.HttpClient(
+                host=chroma_host,
+                port=chroma_port,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported ChromaDB mode: {chroma_mode}"
+            )
+
+        self.collection = self.client.get_or_create_collection(
+            name="documents",
+            metadata={"hnsw:space": "cosine"},
+        )
+
+
 
     def add_chunk(self, chunks: list[dict], embeddings: list[list[float]] ) -> int:
         ids =[]

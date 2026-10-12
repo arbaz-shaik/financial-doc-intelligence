@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
@@ -11,6 +12,10 @@ class Settings(BaseSettings):
     groq_api_key: str 
     model_name: str = "openai/gpt-oss-120b"
 
+    chroma_mode: Literal["local", "http"] = "local"
+    chroma_host : str = "localhost"
+    chroma_port : int = 8001
+    chroma_path : str = "./data/vectors"
 
 
 settings = Settings()       

@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir torch==2.11.0 --index-url https://download.pytorc
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Bake embedding model into the image (no runtime download). Name must match Embedder default in src/rag/embedder.py
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
 # Copy application code
 COPY src/ src/
 
