@@ -1,0 +1,31 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - HF_HUB_OFFLINE=1
+      - CHROMA_MODE=http
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    
+    depends_on:
+      chromadb:
+        condition: service_healthy
+
+  chromadb: 
+    image: chromadb/chroma:1.5.5
+    volumes:
+      - chromadb_data:/data
+    ports:
+        - "8001:8000"
+    healthcheck:
+        test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/8000"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+
+volumes:
+  chromadb_data:

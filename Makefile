@@ -6,3 +6,9 @@ test:
 
 pine:
 	python -m pipeline.sec_client
+
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
