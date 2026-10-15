@@ -1,4 +1,5 @@
 ![CI](https://github.com/arbaz-shaik/financial-doc-intelligence/actions/workflows/ci.yml/badge.svg)
+
 # Financial Document Intelligence
 
 
