@@ -6,13 +6,36 @@ from src.rag.reranker import Reranker
 from src.agent.state import AgentState
 from src.logger import get_logger
 
-
 logger = get_logger(__name__)
-embedder = Embedder()
-store = VectorStore()
-llm = LLM()
-reranker = Reranker(llm=llm)
-prompt = RAG_TEST_PROMPT_V3
+_store =  None
+_embedder = None
+_llm = None
+_reranker = None
+
+def get_store() -> VectorStore:
+    global _store
+    if _store is None:
+        _store = VectorStore()
+    return _store
+
+def get_embedder() -> Embedder:
+    global _embedder
+    if _embedder is None:
+        _embedder = Embedder()
+    return _embedder
+
+def get_llm() -> LLM:
+    global _llm
+    if _llm is None:
+        _llm = LLM()
+    return _llm
+
+def get_reranker() -> Reranker:
+    global _reranker
+    if _reranker is None:
+        _reranker = Reranker(llm=get_llm())
+    return _reranker
+
 
 def router(state: AgentState) -> dict:
     try: 
@@ -35,7 +58,7 @@ def router(state: AgentState) -> dict:
             user_prompt = f"Question: {state['question']}"
 
             # 1. Call LLM
-            response = llm.generate(
+            response = get_llm().generate(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt
             )
@@ -68,13 +91,13 @@ def retrieve(state: AgentState) -> dict:
 
 
         #call the embed and to embed the questions
-        embed_question = embedder.embed(state['question'])
+        embed_question = get_embedder().embed(state['question'])
 
         #call the store.search to search the relavent chunks
-        retrieved_chunks = store.search(query_embedding= embed_question,top_k=state['top_k'],source_filter=source_filter, date_from=state['date_from'])
+        retrieved_chunks = get_store().search(query_embedding= embed_question,top_k=state['top_k'],source_filter=source_filter, date_from=state['date_from'])
 
         #create a ranked chunks function get all reranked chunks
-        ranked_chunks = reranker.rerank(question=state['question'], chunks=retrieved_chunks,top_k=state['top_k'])
+        ranked_chunks = get_reranker().rerank(question=state['question'], chunks=retrieved_chunks,top_k=state['top_k'])
 
         #return all reranked chunks
         context ="\n".join(
@@ -123,7 +146,7 @@ def generate_node(state: AgentState):
         )
 
         # 3. Call LLM
-        answer = llm.generate(
+        answer = get_llm().generate(
             system_prompt="""
     You are a precise financial analyst.
     Only use the provided context and relevant chat history.
@@ -154,7 +177,10 @@ def generate_node(state: AgentState):
             "risk_flags": ["llm_failure"]
         }
 
-
+def after_generate(state: AgentState) -> str:
+    if "llm_failure" in state.get("risk_flags", []):
+        return  "llm_failure"
+    return "risk_flagger"
 
 def  risk_flagger_node(state: AgentState):
         
