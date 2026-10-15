@@ -1,4 +1,6 @@
+![CI](https://github.com/arbaz-shaik/financial-doc-intelligence/actions/workflows/ci.yml/badge.svg)
 # Financial Document Intelligence
+
 
 An end-to-end AI platform that ingests SEC filings and financial news, answers natural language questions with cited sources, flags risk signals, and routes queries intelligently using a LangGraph agent.
 
