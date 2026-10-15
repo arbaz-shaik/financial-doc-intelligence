@@ -6,10 +6,21 @@ from src.agent import nodes
 def route_decision(state : AgentState)->str:
     return state["route"]
 
+def after_generate(state: AgentState) -> str:
+    if "llm_failure" in state.get("risk_flags", []):
+        return  "llm_failure"
+    return "risk_flagger"
 
 workflow = StateGraph(AgentState)
 workflow.add_node("router", nodes.router)
+workflow.add_node("retrieve" ,nodes.retrieve) 
+workflow.add_edge("retrieve", "generate_node")
+workflow.add_node("generate_node", nodes.generate_node)
+workflow.add_node("risk_flagger_node", nodes.risk_flagger_node)
 
+
+
+workflow.add_edge(START, "router")
 workflow.add_conditional_edges("router", route_decision,{
     "sec": "retrieve",
     "news": "retrieve",
@@ -17,13 +28,11 @@ workflow.add_conditional_edges("router", route_decision,{
 
 } )
 
-workflow.add_node("retrieve" ,nodes.retrieve) 
-workflow.add_node("generate_node", nodes.generate_node)
-workflow.add_node("risk_flagger_node", nodes.risk_flagger_node)
+workflow.add_conditional_edges("generate_node", after_generate, {
+    "llm_failure": END,
+    "risk_flagger":"risk_flagger_node",
+})
 
-workflow.add_edge(START, "router")
-workflow.add_edge("retrieve","generate_node")
-workflow.add_edge("generate_node","risk_flagger_node" )
 workflow.add_edge("risk_flagger_node",END)
 
 app = workflow.compile()
