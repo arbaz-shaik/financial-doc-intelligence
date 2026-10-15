@@ -7,3 +7,8 @@ data/vectors
 src/rag/vecStor_store/
 
 
+
+data/chunks/
+data/processed/
+data/chunks_backup/
+data/vectors_old/
