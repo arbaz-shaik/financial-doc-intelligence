@@ -13,12 +13,21 @@ logger = get_logger(__name__)
 
 
 def run_pipeline(companies: list[str]):
+
+        # The API can run without the News API key, so Settings treats it as optional.
+    # The pipeline requires it, so validate it here before creating any clients.
+    if not settings.news_api_key:
+        raise ValueError(
+            "NEWS_API_KEY is missing. Set NEWS_API_KEY in your .env file."
+        )
+
     CIK_MAP = {
         "AAPL": "0000320193",
         "MSFT": "0000789019",
         "JPM": "0000019617",
         "GOOGL": "0001652044",
     }
+
 
     sec_client = SECClient(settings.sec_user_agent)
     parser = DocumentParser()
