@@ -1,55 +1,47 @@
-from  pipeline.store import ChunkStore
+import boto3
+
+from pipeline.store import ChunkStore
+from src.config import settings
 from src.rag.embedder import Embedder
 from src.rag.vector_store import VectorStore
 
-def test():
-    chunkstore = ChunkStore("data/chunks")
-    chunks =  chunkstore.load_all_chunks()
-
-    print (f"total chunks {len(chunks)}")
+BATCH_SIZE = 128
 
 
-    print(chunks[len(chunks) // 2]["text"][:200])
-    print(chunks[len(chunks) // 2]["company"], chunks[len(chunks) // 2]["source"])
-    print(chunks[-1]["text"][:200])
-    print(chunks[-1]["company"], chunks[-1]["source"])
-    print(chunks[0]["text"][:200])
-    print(chunks[0]["company"], chunks[0]["source"])
-
-    embed = Embedder()
-
- 
-    seen_ids = set()
-    unique_chunks = []
-    for chunk in chunks:
-        if chunk["chunk_id"] not in seen_ids:
-            seen_ids.add(chunk["chunk_id"])
-            unique_chunks.append(chunk)
+def build_chunk_store() -> ChunkStore:
+    if settings.storage_mode == "s3":
+        if not settings.s3_bucket:
+            raise ValueError("S3_BUCKET must be set when STORAGE_MODE=s3")
+        client = boto3.client("s3", region_name=settings.aws_region)  # SCP: eu-north-1 only
+        return ChunkStore(bucket=settings.s3_bucket, prefix=settings.s3_prefix, s3_client=client)
+    return ChunkStore(settings.chunks_dir)
 
 
-    
+def main() -> None:
+    store = build_chunk_store()
+    chunks = store.load_all_chunks()
+    print(f"Loaded {len(chunks)} chunks ({settings.storage_mode} mode)")
+    if not chunks:
+        raise SystemExit("No chunks loaded, nothing to index. Check bucket and prefix.")
 
-    chunk_list = [
-        chunk["text"]
-        for chunk in unique_chunks
-]
-    embed_chunks = embed.embed_batch(chunk_list)
+    unique = list({c["chunk_id"]: c for c in chunks}.values())  # safety net, last wins
 
+    embedder = Embedder()
     vector_store = VectorStore()
-    
-    vector_store.add_chunk(unique_chunks, embed_chunks)
-    vector_store.count()
+    for i in range(0, len(unique), BATCH_SIZE):
+        batch = unique[i:i + BATCH_SIZE]
+        vectors = embedder.embed_batch([c["text"] for c in batch])
+        vector_store.add_chunk(batch, vectors)
+        print(f"Indexed {min(i + BATCH_SIZE, len(unique))}/{len(unique)}")
+
     print(f"Stored in ChromaDB: {vector_store.count()}")
 
-    query ="What are Apple's risk factors?"
-    embed_query = embed.embed(query)
-
-    result = vector_store.search(embed_query, top_k=3, company_filter="AAPL")
-    print (result)
-
-
-
+    hits = vector_store.search(
+        embedder.embed("What are Apple's risk factors?"), top_k=3, company_filter="AAPL"
+    )
+    for h in hits:
+        print(h["metadata"].get("source"), h["metadata"].get("date"), h["text"][:100])
 
 
 if __name__ == "__main__":
-    test()
+    main()
