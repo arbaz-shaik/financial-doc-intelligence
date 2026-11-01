@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_NAME: str = "Financial Document Intelligence API"
     sec_user_agent: str = "DefaultUser/1.0 default@email.com"
-    news_api_key: str | None = None	
+    news_api_key: str | None = None
     groq_api_key: str
     model_name: str = "openai/gpt-oss-120b"
 
@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     s3_bucket: str | None = None
     s3_prefix: str = "chunks"
     aws_region: str = "eu-north-1"
+    index_on_startup: bool = False
 
 
 settings = Settings()
