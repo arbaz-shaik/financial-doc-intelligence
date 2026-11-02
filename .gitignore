@@ -14,3 +14,11 @@ data/chunks_backup/
 data/vectors_old/
 env_test/
 env_test/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+tfplan
+*.tfplan
