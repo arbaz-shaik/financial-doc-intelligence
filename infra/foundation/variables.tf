@@ -14,5 +14,5 @@ variable "bucket_name" {
 }
 variable "github_repo" {
   type    = string
-  default = "arbaz-shaik/financial-doc-intelligence"
+  default = "arbaz-shaik@114905361/financial-doc-intelligence@1181171485" # owner@id/repo@id, as GitHub sends it in the OIDC sub
 }
