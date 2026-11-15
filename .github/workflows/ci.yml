@@ -57,3 +57,40 @@ jobs:
       - uses: actions/checkout@v4
 
       - run: docker build -t financial-ai .
+  push-image:
+    needs: [test, build]
+    # Only on pushes to main (i.e. after a merge) - never on pull requests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write   # allow this job to request an OIDC token
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assume the deploy role via OIDC (no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-north-1
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push (skip if this commit's image already exists)
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPO: financial-ai
+        run: |
+          TAG="${GITHUB_SHA::7}"
+          IMAGE="$REGISTRY/$REPO:$TAG"
+          if aws ecr describe-images --repository-name "$REPO" --image-ids imageTag="$TAG" > /dev/null 2>&1; then
+            echo "Image $IMAGE already exists (tags are immutable) - skipping push."
+            echo "Skipped: $IMAGE already in ECR" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "Pushed: $IMAGE" >> "$GITHUB_STEP_SUMMARY"

@@ -27,3 +27,7 @@ output "bucket_name" {
   description = "S3 bucket holding the chunks"
   value       = aws_s3_bucket.chunks.id
 }
+output "github_deploy_role_arn" {
+  description = "Role GitHub Actions assumes via OIDC to push images (not a secret)"
+  value       = aws_iam_role.github_deploy.arn
+}
