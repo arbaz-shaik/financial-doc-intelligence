@@ -12,13 +12,20 @@ ROUTES = {"sec", "news", "general"}
 FIELDS = {"id", "type", "question", "expected_route", "reference_answer",
           "expected_chunk_ids", "evidence"}
 
-# Every chunk ID that really exists in the stored data
-known_ids = set()
+# Every chunk that really exists in the stored data: id -> text
+chunk_text = {}
 for path in Path("data/chunks").glob("*.jsonl"):
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.strip():
-            known_ids.add(json.loads(line)["chunk_id"])
+            c = json.loads(line)
+            chunk_text[c["chunk_id"]] = c["text"]
+known_ids = set(chunk_text)
 
+
+def normalise(s: str) -> str:
+    """Compare text ignoring case, curly vs straight quotes, and line breaks/spaces."""
+    s = s.replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", '"').replace("\u201d", '"')
+    return " ".join(s.lower().split())
 problems, seen = [], set()
 rows = []
 for lineno, line in enumerate(GOLDEN.read_text(encoding="utf-8").splitlines(), start=1):
@@ -52,6 +59,10 @@ for row in rows:
     for cid in ids:
         if cid not in known_ids:
             problems.append(f"{qid}: chunk {cid} does not exist in data/chunks")
+    if ids and all(cid in known_ids for cid in ids):
+        combined = normalise(" ".join(chunk_text[cid] for cid in ids))
+        if normalise(row["evidence"]) not in combined:
+            problems.append(f"{qid}: evidence quote not found verbatim in its expected chunks")            
 
 counts = {t: sum(r.get("type") == t for r in rows) for t in sorted(TYPES)}
 print(f"{len(rows)} questions  {counts}")
