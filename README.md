@@ -4,9 +4,9 @@
 
 An end-to-end AI system that ingests SEC 10-K filings and financial news, answers natural-language questions with cited sources, flags risk signals, and routes each query through a LangGraph agent.
 
-It runs locally as a Docker Compose stack (FastAPI + ChromaDB), stores its document chunks in Amazon S3, and has been deployed to **AWS ECS on Fargate** behind an HTTPS load balancer, with least-privilege IAM roles and secrets in Parameter Store. Every pull request is checked by GitHub Actions CI.
+It runs locally as a Docker Compose stack (FastAPI, ChromaDB, Prometheus, Grafana), stores its document chunks in Amazon S3, and deploys to **AWS ECS on Fargate** behind an HTTPS load balancer. All AWS infrastructure is defined in **Terraform**, every merge to `main` builds and pushes a versioned image through **GitHub Actions with OIDC** (no stored AWS keys), and the API is instrumented with **Prometheus** metrics and a **Grafana** dashboard provisioned as code.
 
-Built as a portfolio project over a phased plan, targeting Applied AI / ML Engineer / MLOps roles in the UK.
+Built as a portfolio project over a phased plan, targeting MLOps, DevOps and Applied AI Engineer roles in the UK.
 
 ---
 
@@ -14,14 +14,16 @@ Built as a portfolio project over a phased plan, targeting Applied AI / ML Engin
 
 | What | Result |
 |------|--------|
-| **Deployed on AWS** | ECS Express Mode on Fargate (1 vCPU / 3 GB) behind an HTTPS Application Load Balancer. Verified end to end over HTTPS: `/health`, Swagger, and `/companies/ask/` returning cited answers. Torn down between demos to control cost, and redeployable from the image in ECR. |
+| **Infrastructure as code** | All AWS resources in Terraform, split into a long-lived **foundation** stack (S3, ECR, IAM: 9 existing resources imported with zero drift) and a short-lived **service** stack (ECS Express) created for demos and destroyed after. `prevent_destroy` on data; secrets never enter state. |
+| **Continuous delivery, no stored keys** | Every merge to `main` builds and pushes an image tagged with the commit SHA. GitHub Actions assumes an AWS role through **OIDC**, trusted only for this repository's `main` branch (pinned to GitHub's numeric owner and repo IDs). GitHub holds **no AWS secrets**. |
+| **Monitoring** | Prometheus metrics (HTTP plus AI-specific: queries by route, LLM latency and failures, index state) and a Grafana dashboard provisioned as code. Found a misleading p95 of exactly 1 s caused by default histogram buckets; the real p95 was 7–9.5 s, dominated by 3 LLM calls per question. |
+| **Deployed on AWS** | ECS Express Mode on Fargate (1 vCPU / 3 GB) behind an HTTPS Application Load Balancer. Verified end to end over HTTPS: `/health`, Swagger, and `/companies/ask/` returning cited answers, from an image built and pushed by CI. |
 | **No keys in the container** | The app reads S3 through an ECS **task role** (read-only on `chunks/`), and the Groq key is injected from **Parameter Store** by the **task execution role**. No AWS keys or plain-text secrets in code, image or task definition. |
 | **Liveness vs readiness** | The vector index is rebuilt from S3 in a **background thread** at startup. `/health` answers immediately (verified during indexing, from all 3 load-balancer AZs), while `/companies/ask/` returns **503** until the index is ready. Indexing 764 chunks took **18.6 s on Fargate**. |
 | **S3-backed storage** | Chunks live in S3 (Block Public Access on, SSE-S3 encryption). Saves **merge by `chunk_id`** because S3 has no append, making pipeline re-runs idempotent. |
 | **Docker image size** | 8.98 GB → **2.49 GB** on disk (3.05 GB → **528 MB** compressed) by switching to CPU-only PyTorch. Diagnosed with `docker history` and `pip list` inside the container: Linux PyTorch from PyPI pulled 15 `nvidia-*` CUDA packages the app never uses. |
 | **Offline-capable container** | The embedding model is baked into the image at build time. Verified with `HF_HUB_OFFLINE=1`: the container starts and embeds with no network access to Hugging Face. |
 | **CI quality gate** | Lint, tests and a Docker build run on every pull request. A branch ruleset blocks merging into `main` until all three pass. |
-| **LLM provider change** | When Groq retired the original model, structured logs pinpointed `model_not_found` across all agent nodes. The model name now lives in config, so the next migration is a one-line `.env` change. |
 
 ---
 
@@ -38,24 +40,25 @@ flowchart LR
 
     subgraph dev["Developer laptop"]
         pipeline["pipeline.run<br/>SEC EDGAR + NewsAPI → chunks"]
-        docker["docker build<br/>CPU torch + baked MiniLM"]
+        tf["terraform apply / destroy<br/>foundation + service stacks"]
     end
 
     subgraph gh["GitHub"]
         pr["Pull request"]
         ci["Actions CI<br/>lint → test → build"]
-        main["main (protected)"]
+        push["push-image job<br/>main only"]
     end
 
     subgraph aws["AWS account findoc · eu-north-1"]
         s3[("S3 bucket<br/>chunks/*.jsonl<br/>Block Public Access · SSE-S3")]
-        ecr[("ECR<br/>financial-ai:git-sha")]
+        ecr[("ECR<br/>financial-ai:git-sha<br/>immutable · scan on push")]
         ssm[("Parameter Store<br/>/findoc/GROQ_API_KEY")]
-        logs[("CloudWatch Logs")]
+        logs[("CloudWatch Logs<br/>7-day retention")]
+        ghrole{{"GitHub deploy role<br/>OIDC · main only · push only"}}
         execrole{{"Task execution role<br/>pull · logs · secret"}}
         taskrole{{"Task role<br/>read-only chunks/"}}
 
-        subgraph ecs["ECS Express Mode"]
+        subgraph ecs["ECS Express Mode (service stack)"]
             alb["Application Load Balancer<br/>HTTPS · *.ecs.eu-north-1.on.aws<br/>health check /health · 3 AZs"]
             subgraph task["Fargate task · 1 vCPU / 3 GB"]
                 api["FastAPI + LangGraph agent"]
@@ -66,8 +69,10 @@ flowchart LR
     end
 
     pipeline -->|"upload chunks"| s3
-    docker -->|"docker push"| ecr
-    pr --> ci --> main
+    pr --> ci -->|"merge to main"| push
+    push -.->|"OIDC token → short-lived creds"| ghrole
+    ghrole -.->|"push image"| ecr
+    tf -->|"creates / destroys"| alb
 
     user -->|"HTTPS"| alb --> api
     execrole -.->|"pull image"| ecr
@@ -86,14 +91,17 @@ flowchart LR
 flowchart LR
     browser(["Browser"]) -->|"localhost:8000"| api
     scripts(["Laptop scripts<br/>load_chunks"]) -->|"localhost:8001"| chroma
+    you(["You"]) -->|"localhost:3001"| grafana
 
     subgraph net["docker compose network"]
         api["api<br/>FastAPI + LangGraph<br/>model baked into image"] -->|"http://chromadb:8000"| chroma[("chromadb 1.5.5")]
         chroma --- vol[("named volume chromadb_data<br/>mounted at /data")]
+        prom[("Prometheus<br/>host port 9091")] -->|"scrape /metrics every 15 s"| api
+        grafana["Grafana<br/>provisioned data source + dashboard"] -->|"PromQL"| prom
     end
 ```
 
-The API waits for ChromaDB to pass a healthcheck (`depends_on: condition: service_healthy`). The healthcheck uses bash's `/dev/tcp`, because the ChromaDB image ships without curl, wget or Python.
+The API waits for ChromaDB to pass a healthcheck (`depends_on: condition: service_healthy`). The healthcheck uses bash's `/dev/tcp`, because the ChromaDB image ships without curl, wget or Python. Prometheus and Grafana use host ports 9091 and 3001, so they never clash with other local stacks on the default ports.
 
 ### Agent request flow (LangGraph)
 
@@ -128,6 +136,71 @@ sequenceDiagram
 
 ---
 
+## Deployment pipeline
+
+```mermaid
+flowchart LR
+    pr(["Pull request"]) --> ci["CI: lint → test → build"]
+    ci -->|"merge to main"| push["push-image job"]
+    push -->|"OIDC token → short-lived AWS credentials"| ecr[("ECR<br/>financial-ai:git-sha")]
+    ecr -->|"terraform apply<br/>image_tag = git-sha"| svc["ECS Express service<br/>(service stack)"]
+    svc -->|"terraform destroy after demo"| gone(["no running cost"])
+```
+
+This is **continuous delivery**, not continuous deployment: CI guarantees a tested, versioned image for every merge, and deploying it is a deliberate `terraform apply`. The service stack is short-lived for cost control, so most of the time there is nothing running to deploy to.
+
+The push job is **idempotent**: ECR tags are immutable, so it checks whether the commit's image already exists and skips the push if so, which makes re-runs safe.
+
+### Running the Terraform stacks
+
+```bash
+# Long-lived foundation (once): S3, ECR, IAM roles, GitHub OIDC
+cd infra/foundation
+terraform init
+terraform plan -out tfplan && terraform apply tfplan
+
+# Short-lived service (per demo): set image_tag in dev.tfvars to a commit SHA in ECR
+cd ../service
+terraform init
+terraform plan -var-file=dev.tfvars -out tfplan && terraform apply tfplan
+# ... demo ...
+terraform plan -destroy -var-file=dev.tfvars -out destroy.tfplan && terraform apply destroy.tfplan
+```
+
+On Windows PowerShell, quote flags that contain a dot: `"-var-file=dev.tfvars"`.
+
+The service stack reads the foundation's outputs with `terraform_remote_state`. That is safe because foundation state contains no secret values: the Groq key lives in Parameter Store, and Terraform only handles its ARN.
+
+![/companies/ask/ answered over HTTPS by the CI-built image](docs/screenshots/cd-ask-https.png)
+
+---
+
+## Monitoring
+
+`docker compose up` starts the API, ChromaDB, **Prometheus** (http://localhost:9091) and **Grafana** (http://localhost:3001). The data source and dashboard are provisioned from files in `monitoring/`, so no manual setup is needed.
+
+![Grafana dashboard](docs/screenshots/grafana-dashboard.png)
+
+| Metric | Type | Why |
+|---|---|---|
+| `http_requests_total`, `http_request_duration_highr_seconds` | Counter, histogram | Request rate, errors and latency. `/health` is excluded, so load-balancer checks don't inflate traffic or flatter p95 |
+| `findoc_queries_total{route}` | Counter | Which agent route answered (low-cardinality label; the question is never a label) |
+| `findoc_llm_call_seconds` | Histogram (buckets 0.5–60 s) | LLM latency, recorded once in the LLM client, so every node is covered |
+| `findoc_llm_failures_total` | Counter | LLM errors |
+| `findoc_index_status` | Enum | `building` / `ready` / `failed` |
+
+## Cost control
+
+- Compute exists only during demos: `terraform apply` → verify → `terraform destroy`, then CLI checks confirm no services, load balancers or target groups remain
+- One task maximum (startup indexing spikes CPU, which could otherwise trigger scale-out)
+- ECR lifecycle policy keeps the 10 most recent tagged images
+- 7-day CloudWatch log retention
+- AWS Budgets alerts on the account
+
+**Region:** everything runs in `eu-north-1`, because an organisation Service Control Policy denies other regions.
+
+---
+
 ## Project status
 
 | Phase | Scope | Status |
@@ -136,14 +209,15 @@ sequenceDiagram
 | 2 | Data pipeline: SEC EDGAR + NewsAPI ingestion, HTML parsing, chunking, JSONL storage | ✅ |
 | 3 | RAG: sentence-transformers embeddings, ChromaDB, LLM reranker, cited answers | ✅ |
 | 4 | LangGraph agent: routing, risk flagging, conversation memory, error handling | ✅ |
-| 5 | Deployment | 🟡 In progress |
-|   | ↳ Docker image (CPU torch, baked model) | ✅ |
-|   | ↳ Docker Compose stack with persistent ChromaDB | ✅ |
-|   | ↳ GitHub Actions CI + branch protection | ✅ |
-|   | ↳ S3 storage mode with moto tests | ✅ |
-|   | ↳ ECR + ECS Express (Fargate), IAM roles, Parameter Store | ✅ |
-|   | ↳ Terraform, Prometheus + Grafana | ⏳ |
-| 6 | Evaluation (RAGAS, golden test set), MLflow, React frontend | ⏳ |
+| 5 | Deployment | ✅ |
+|   | ↳ Docker image, Compose stack, CI + branch protection | ✅ |
+|   | ↳ S3 storage, ECR + ECS Express (Fargate), IAM roles, Parameter Store | ✅ |
+|   | ↳ Terraform (foundation + service stacks) | ✅ |
+|   | ↳ Prometheus + Grafana (provisioned as code) | ✅ |
+|   | ↳ Continuous delivery: OIDC image push to ECR on merge | ✅ |
+| 6 | Evaluation: golden test set + RAGAS, MLflow, traditional ML model | ⏳ |
+| 7 | DevOps platform: Kubernetes (kind), Helm, Argo CD, DevSecOps, autoscaling, Ansible | ⏳ |
+| 8 | Polish: answer quality, retrieval, documentation | ⏳ |
 
 ---
 
@@ -160,11 +234,14 @@ cd financial-doc-intelligence
 # 1. Configure secrets: copy the template, then add your keys
 cp .env.example .env
 
-# 2. Start the stack (API + ChromaDB) in the background
+# 2. Start the stack (API, ChromaDB, Prometheus, Grafana) in the background
 make docker-up
 ```
 
-The API is now at http://localhost:8000 (Swagger UI at `/docs`), and ChromaDB at http://localhost:8001.
+- API: http://localhost:8000 (Swagger UI at `/docs`)
+- ChromaDB: http://localhost:8001
+- Prometheus: http://localhost:9091
+- Grafana: http://localhost:3001 (dashboard **Findoc → Findoc API**)
 
 **Load documents into the ChromaDB container.** This runs from your laptop, against the exposed port:
 
@@ -181,7 +258,7 @@ On Windows PowerShell, set the variable first: `$env:CHROMA_MODE="http"; python 
 
 Saves merge by `chunk_id`, so re-running the pipeline updates chunks instead of duplicating them.
 
-Stop the stack with `make docker-down`. Data persists in the `chromadb_data` volume. **Do not add `-v`**, which deletes the volume.
+Stop the stack with `make docker-down`. Data persists in named volumes. **Do not add `-v`**, which deletes them.
 
 ### Option B: Local development (no Docker)
 
@@ -201,25 +278,9 @@ With AWS credentials available through the standard credential chain (for exampl
 STORAGE_MODE=s3 S3_BUCKET=<your-bucket> python -m scripts.load_chunks
 ```
 
-### Deploying to AWS (ECS Express Mode)
+### Deploying to AWS
 
-1. Build the image and push it to ECR, tagged with the git commit SHA.
-2. Store `GROQ_API_KEY` as a SecureString under `/findoc/` in Parameter Store.
-3. Create two roles:
-   - **Task execution role:** `AmazonECSTaskExecutionRolePolicy` plus `ssm:GetParameters` on `/findoc/*`
-   - **Task role:** `s3:ListBucket` limited to the `chunks` prefix, and `s3:GetObject` on `chunks/*` (no write or delete)
-4. Create an Express Mode service: port `8000`, health check `/health`, 1 vCPU / 3 GB, max 1 task, `GROQ_API_KEY` as a **secret** (Parameter Store ARN), and these environment variables:
-
-   ```
-   STORAGE_MODE=s3
-   S3_BUCKET=<your-bucket>
-   CHROMA_MODE=local
-   CHROMA_PATH=/tmp/chroma
-   INDEX_ON_STARTUP=true
-   HF_HUB_OFFLINE=1
-   ```
-
-5. **Tear down** after use (delete the service), then confirm no load balancer remains.
+See [Deployment pipeline](#deployment-pipeline): the foundation stack creates the bucket, ECR repository, IAM roles and GitHub OIDC trust; merging to `main` pushes an image; the service stack deploys a chosen image tag and is destroyed after use. The Groq key must exist as a SecureString at `/findoc/GROQ_API_KEY` in Parameter Store (created outside Terraform, so its value never enters state).
 
 ---
 
@@ -255,6 +316,7 @@ AWS credentials are never configured in the app: locally they come from your CLI
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Liveness check (independent of ChromaDB, indexing and the LLM) |
+| GET | `/metrics` | Prometheus metrics (hidden from Swagger) |
 | POST | `/companies` | Add a company |
 | GET | `/companies` | List all companies |
 | GET | `/companies/search/` | Search by sector or name |
@@ -300,9 +362,12 @@ For follow-up questions, send previous turns in `chat_history` as `{"question": 
 |-----|--------------|-------|
 | `lint` | `ruff check .` | Installs only ruff, not the full dependency set |
 | `test` | `pytest` with dummy API keys | CPU-only torch installed first; pip cache keyed on both requirements files; 60 s per-test timeout; **no AWS credentials** |
-| `build` | `docker build` | Runs only after `lint` and `test` pass |
+| `build` | `docker build` | Proves the image builds |
+| `push-image` | Assume the deploy role via OIDC, log in to ECR, build and push `financial-ai:<sha>` | **Only on pushes to `main`**, after `test` and `build` pass; skips if the tag already exists |
 
-A repository ruleset requires all three checks before anything merges into `main`. This was verified by pushing a deliberately broken test to an open PR: the PR went red and merging was blocked until it was fixed.
+A repository ruleset requires `lint`, `test` and `build` before anything merges into `main`. This was verified by pushing a deliberately broken test to an open PR: the PR went red and merging was blocked until it was fixed.
+
+The deploy role's ARN is a repository **variable**, not a secret: it is an address, not a credential. The repository has **no AWS secrets**.
 
 **Dependencies are split:** `requirements.txt` holds runtime packages only (what the Docker image installs), and `requirements-dev.txt` includes it with `-r` and adds pytest, pytest-timeout, ruff and moto.
 
@@ -324,18 +389,25 @@ A repository ruleset requires all three checks before anything merges into `main
 
 Problems hit during the build, and what fixed them:
 
-- **An organisation SCP denied every region except `eu-north-1`.** `CreateBucket` in `eu-west-2` failed with an explicit deny, even with `AdministratorAccess`, because an explicit `Deny` in a Service Control Policy overrides any IAM `Allow`. The project moved to `eu-north-1`.
-- **`async def` blocked `/health`.** The `/ask` endpoint was `async def` but called the blocking agent, freezing the event loop during LLM calls, so health checks could time out. Changing it to plain `def` lets FastAPI run it in a worker thread.
-- **The first image built for ECS didn't contain the new code.** A one-line `docker run ... python -c "..."` check before pushing caught it, and the image was rebuilt from the merged commit and tagged with that commit's SHA.
-- **Chunker never terminated** when the final chunk was shorter than `chunk_size` (`start` reset to `end - overlap` forever). Fixed by stopping after the final chunk and forcing `start` to advance. This also explained a hanging test.
-- **88 news articles collapsed into 1 stored chunk**, because chunk IDs restarted at 0 per document. IDs now include a required `doc_id`: the SEC accession number for filings, and a short MD5 of the URL for news.
-- **`depends_on` alone doesn't wait for readiness:** it waits for a container to *start*, not for its service to accept connections. Fixed in Compose with a healthcheck gate, and in the app with lazy initialisation.
-- **PowerShell `>` wrote `requirements.txt` as UTF-16**, which was caught by inspecting the first bytes with `Format-Hex` and converted to UTF-8.
+- **GitHub's OIDC token was rejected by AWS.** CloudTrail showed the token's subject in an ID-based format, `repo:owner@<owner-id>/repo@<repo-id>:ref:refs/heads/main`, while the trust policy expected names only. The trust policy now matches the ID-based subject, which is also safer: numeric IDs are never reused, so a re-created repository with the same name could not assume the role.
+- **The dashboard reported p95 latency of exactly 1 s.** The instrumentator's default histogram only has 0.1, 0.5 and 1 s buckets, so every slow request was clamped to the top bucket. Switching to the high-resolution histogram showed the real p95 of 7–9.5 s.
+- **Adding the metrics library silently upgraded Starlette from 0.52 to 1.10**, a major version, so the laptop no longer matched the Docker image. Pinned an instrumentator version compatible with the deployed Starlette instead; `pip check` confirms a consistent environment.
+- **Terraform imports were verified, not assumed.** Each existing resource was imported and the code adjusted until `terraform plan` reported "No changes"; resource field names for the new ECS Express resource were read from `terraform providers schema` rather than blog posts.
+- **An organisation SCP denied every region except `eu-north-1`.** `CreateBucket` in `eu-west-2` failed with an explicit deny, even with `AdministratorAccess`, because an explicit `Deny` in a Service Control Policy overrides any IAM `Allow`.
+- **`async def` blocked `/health`.** The `/ask` endpoint was `async def` but called the blocking agent, freezing the event loop during LLM calls. Changing it to plain `def` lets FastAPI run it in a worker thread.
+- **The first image built for ECS didn't contain the new code.** A one-line `docker run ... python -c "..."` check before pushing caught it; images are now built by CI from the merge commit.
+- **Chunker never terminated** when the final chunk was shorter than `chunk_size`. Fixed by stopping after the final chunk and forcing `start` to advance.
+- **88 news articles collapsed into 1 stored chunk**, because chunk IDs restarted at 0 per document. IDs now include a required `doc_id`.
+- **`depends_on` alone doesn't wait for readiness.** Fixed in Compose with a healthcheck gate, and in the app with lazy initialisation.
+- **PowerShell `>` wrote `requirements.txt` as UTF-16**, caught by inspecting the first bytes with `Format-Hex`.
 
 ---
 
 ## Known limitations / roadmap
 
+- `/metrics` is publicly reachable when deployed; it should be restricted to internal access
+- Terraform state is local (gitignored and backed up by hand); an S3 backend with locking is the next step
+- Some GitHub Actions still target Node 20, and `ubuntu-latest` will change underneath; both should be pinned
 - The index is rebuilt inside each container at startup; scaling to several tasks would need a shared, managed vector store
 - Successful health checks are logged on every call (CloudWatch noise and cost)
 - `ChunkStore` lives in `pipeline/`, so the image copies that folder too; it belongs in `src/`
@@ -345,9 +417,8 @@ Problems hit during the build, and what fixed them:
 - Citation format varies between model runs, and answers sometimes omit citations; citations should be parsed and validated
 - Retrieval ignores chat history (follow-ups need query rewriting before retrieval)
 - No company filter at query time (needed before ingesting multiple companies)
-- News ingestion queries by ticker, which returns some irrelevant results
-- If the LLM is unavailable, the reranker failure also empties retrieval results
-- Planned: Terraform, Prometheus + Grafana, RAGAS evaluation, MLflow, React frontend
+- 3 LLM calls per question dominate latency; a smaller, faster model for routing and reranking is a measurable next step
+- Planned: RAGAS evaluation, MLflow, Kubernetes, Helm, Argo CD
 
 ---
 
@@ -355,17 +426,22 @@ Problems hit during the build, and what fixed them:
 
 ```
 financial-doc-intelligence/
-├── .github/workflows/ci.yml   # lint → test → docker build
+├── .github/workflows/ci.yml   # lint → test → build → push-image (main only, OIDC)
 ├── Dockerfile                 # python:3.13-slim, CPU torch, baked model, src/ + pipeline/
-├── docker-compose.yml         # api + chromadb, named volume, healthcheck
+├── docker-compose.yml         # api, chromadb, prometheus, grafana
 ├── Makefile                   # run, test, docker-up, docker-down
 ├── pytest.ini
 ├── requirements.txt           # runtime dependencies
 ├── requirements-dev.txt       # -r requirements.txt + pytest, ruff, moto
+├── infra/
+│   ├── foundation/            # long-lived: S3, ECR, IAM roles, GitHub OIDC (Terraform)
+│   └── service/               # short-lived: ECS Express service + log group (Terraform)
+├── monitoring/                # Prometheus config, Grafana provisioning + dashboard JSON
 ├── src/
 │   ├── config.py              # Pydantic Settings (all configuration)
 │   ├── logger.py              # structured JSON logging
-│   ├── main.py                # FastAPI app, startup indexing, readiness gate
+│   ├── main.py                # FastAPI app, startup indexing, readiness gate, /metrics
+│   ├── metrics.py             # custom Prometheus metrics
 │   ├── models.py              # request/response schemas
 │   ├── rag/                   # embedder, vector_store, llm, reranker, prompts, indexer
 │   └── agent/                 # state, nodes (lazy getters), graph
@@ -379,4 +455,4 @@ financial-doc-intelligence/
 
 ## Tech stack
 
-Python 3.13 · FastAPI · Pydantic · LangGraph · ChromaDB · sentence-transformers (all-MiniLM-L6-v2) · Groq (openai/gpt-oss-120b) · BeautifulSoup4 · httpx · boto3 · pytest · moto · ruff · Docker · Docker Compose · GitHub Actions · AWS (S3, ECR, ECS Fargate, IAM, Parameter Store, CloudWatch)
+Python 3.13 · FastAPI · Pydantic · LangGraph · ChromaDB · sentence-transformers (all-MiniLM-L6-v2) · Groq (openai/gpt-oss-120b) · BeautifulSoup4 · httpx · boto3 · pytest · moto · ruff · Docker · Docker Compose · GitHub Actions (OIDC) · Terraform · Prometheus · Grafana · AWS (S3, ECR, ECS Fargate, IAM, Parameter Store, CloudWatch)
