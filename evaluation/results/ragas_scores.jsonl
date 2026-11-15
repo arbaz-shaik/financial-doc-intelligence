@@ -1,0 +1,17 @@
+{"id": "q01", "type": "sec", "faithfulness": {"value": 0.7142857142857143, "error": null}, "reference_coverage": {"value": 0.5, "error": null}}
+{"id": "q02", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.8, "error": null}}
+{"id": "q03", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q04", "type": "general", "faithfulness": {"value": null, "error": "InstructorRetryException: <failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    The output is incomplete due to a max_tokens length limit.\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-fa238059-dee1-41b6-a817-"}, "reference_coverage": {"value": 0.5, "error": null}}
+{"id": "q06", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q07", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q08", "type": "sec", "faithfulness": {"value": null, "error": "InstructorRetryException: <failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    The output is incomplete due to a max_tokens length limit.\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-dc562cf5-3deb-4586-9018-"}, "reference_coverage": {"value": 1.0, "error": null}}
+{"id": "q09", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q10", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.67, "error": null}}
+{"id": "q11", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.67, "error": null}}
+{"id": "q12", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q13", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q14", "type": "sec", "faithfulness": {"value": null, "error": "InstructorRetryException: <failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    The output is incomplete due to a max_tokens length limit.\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-d5e3f346-f5d5-460d-a207-"}, "reference_coverage": {"value": 0.2, "error": null}}
+{"id": "q15", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.4, "error": null}}
+{"id": "q16", "type": "general", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q17", "type": "general", "faithfulness": {"value": 0.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q18", "type": "general", "faithfulness": {"value": null, "error": "InstructorRetryException: <failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    The output is incomplete due to a max_tokens length limit.\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-249dea52-5346-4855-b6d5-"}, "reference_coverage": {"value": null, "error": "RuntimeError: still rate limited after retries"}}
