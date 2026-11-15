@@ -12,3 +12,7 @@ variable "bucket_name" {
   type    = string
   default = "financial-doc-intel-arbaz-2026"
 }
+variable "github_repo" {
+  type    = string
+  default = "arbaz-shaik/financial-doc-intelligence"
+}
