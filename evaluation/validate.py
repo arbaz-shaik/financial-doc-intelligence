@@ -9,8 +9,15 @@ from pathlib import Path
 GOLDEN = Path("evaluation/golden_set.jsonl")
 TYPES = {"sec", "news", "general", "unanswerable"}
 ROUTES = {"sec", "news", "general"}
-FIELDS = {"id", "type", "question", "expected_route", "reference_answer",
-          "expected_chunk_ids", "evidence"}
+FIELDS = {
+    "id",
+    "type",
+    "question",
+    "expected_route",
+    "reference_answer",
+    "expected_chunk_ids",
+    "evidence",
+}
 
 # Every chunk that really exists in the stored data: id -> text
 chunk_text = {}
@@ -24,8 +31,15 @@ known_ids = set(chunk_text)
 
 def normalise(s: str) -> str:
     """Compare text ignoring case, curly vs straight quotes, and line breaks/spaces."""
-    s = s.replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", '"').replace("\u201d", '"')
+    s = (
+        s.replace("\u2019", "'")
+        .replace("\u2018", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+    )
     return " ".join(s.lower().split())
+
+
 problems, seen = [], set()
 rows = []
 for lineno, line in enumerate(GOLDEN.read_text(encoding="utf-8").splitlines(), start=1):
@@ -62,8 +76,13 @@ for row in rows:
     if ids and all(cid in known_ids for cid in ids):
         combined = normalise(" ".join(chunk_text[cid] for cid in ids))
         if normalise(row["evidence"]) not in combined:
-            problems.append(f"{qid}: evidence quote not found verbatim in its expected chunks")            
-
+            problems.append(
+                f"{qid}: evidence quote not found verbatim in its expected chunks"
+            )
+expected = {f"q{i:02d}" for i in range(1, len(rows) + 1)}
+gaps = sorted(expected - seen)
+if gaps:
+    problems.append(f"missing ids in the q01..q{len(rows):02d} sequence: {gaps}")
 counts = {t: sum(r.get("type") == t for r in rows) for t in sorted(TYPES)}
 print(f"{len(rows)} questions  {counts}")
 print("\n".join(problems) if problems else "All checks passed.")
