@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s          # how often Prometheus visits /metrics
+
+scrape_configs:
+  - job_name: findoc-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]   # the Compose service name, on the internal network

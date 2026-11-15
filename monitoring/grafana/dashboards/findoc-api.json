@@ -1,0 +1,70 @@
+{
+  "uid": "findoc-api",
+  "title": "Findoc API",
+  "schemaVersion": 39,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Request rate",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(rate(http_requests_total[5m]))", "legendFormat": "requests/s" } ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "p95 HTTP latency",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_highr_seconds_bucket[5m])) by (le))", "legendFormat": "p95" } ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Error rate (5xx)",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "100 * sum(rate(http_requests_total{status=\"5xx\"}[5m])) / sum(rate(http_requests_total[5m]))", "legendFormat": "5xx %" } ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Queries by route",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (route) (rate(findoc_queries_total[5m]))", "legendFormat": "{{route}}" } ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "p95 LLM call time",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(findoc_llm_call_seconds_bucket[5m])) by (le))", "legendFormat": "p95" } ]
+    },
+    {
+      "id": 6, "type": "stat", "title": "LLM failures (1h)",
+      "gridPos": { "x": 16, "y": 8, "w": 4, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "graphMode": "none" },
+      "targets": [ { "refId": "A", "expr": "sum(increase(findoc_llm_failures_total[1h]))" } ]
+    },
+    {
+      "id": 7, "type": "stat", "title": "Index ready",
+      "gridPos": { "x": 20, "y": 8, "w": 4, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "mappings": [
+            { "type": "value", "options": {
+                "1": { "text": "Ready", "color": "green", "index": 0 },
+                "0": { "text": "Not ready", "color": "red", "index": 1 } } }
+          ]
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none" },
+      "targets": [ { "refId": "A", "expr": "findoc_index_status{findoc_index_status=\"ready\"}" } ]
+    }
+  ]
+}
