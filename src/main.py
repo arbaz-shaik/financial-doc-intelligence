@@ -4,11 +4,13 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.agent.graph import app as build_agent
 from src.agent.nodes import get_embedder, get_store
 from src.config import settings
 from src.logger import get_logger
+from src.metrics import INDEX_STATUS, QUERIES
 from src.models import AnswerResponse, Company, CompanyResponse, QuestionRequest
 from src.rag.indexer import build_chunk_store, build_index
 from src.storage import CompanyStore
@@ -19,6 +21,7 @@ logger = get_logger(__name__)
 # "ready" when startup indexing is off (the index already exists, e.g. laptop/Compose).
 # Otherwise "building" until the background job finishes, then "ready" or "failed".
 _index_status = "building" if settings.index_on_startup else "ready"
+INDEX_STATUS.state(_index_status)
 
 
 def _run_startup_index() -> None:
@@ -32,9 +35,11 @@ def _run_startup_index() -> None:
         count = build_index(build_chunk_store(), get_embedder(), get_store())
         logger.info(f"Startup indexing complete: {count} chunks")
         _index_status = "ready"
+        INDEX_STATUS.state("ready")
     except Exception as e:
         logger.error(f"Startup indexing failed: {e}")
         _index_status = "failed"
+        INDEX_STATUS.state("failed")
 
 
 @asynccontextmanager
@@ -47,6 +52,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.API_NAME, lifespan=lifespan)
+
+# HTTP metrics (request count, latency, status codes) exposed at /metrics.
+# /health and /metrics are excluded: the load balancer calls /health constantly,
+# which would inflate the request rate and make p95 latency look artificially good.
+Instrumentator(excluded_handlers=["/health", "/metrics"]).instrument(app).expose(
+    app, include_in_schema=False
+)
 
 
 @app.get("/health")
@@ -85,12 +97,16 @@ def ask(request: QuestionRequest):
         }
     )
 
+    # Count only answered questions (after the 503 checks), by route
+    route = result.get("route", "default")
+    QUERIES.labels(route=route).inc()
+
     return AnswerResponse(
         question=request.question,
         answer=result.get("answer", ""),
         sources=result.get("sources", []),
         risk_flags=result.get("risk_flags") or [],
-        route=result.get("route", "default"),
+        route=route,
     )
 
 
