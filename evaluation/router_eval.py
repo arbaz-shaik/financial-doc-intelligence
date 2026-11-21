@@ -35,8 +35,10 @@ def main() -> None:
             routes[q["id"]] = router({"question": q["question"]})["route"]
             time.sleep(args.pause)
         acc = sum(routes[q["id"]] == q["expected_route"] for q in golden) / len(golden)
-        runs.append({"accuracy": acc, "routes": routes})
-        print(f"  repeat {i}: {acc:.0%}")
+        answerable = [q for q in golden if q["type"] != "unanswerable"]
+        acc_ans = sum(routes[q["id"]] == q["expected_route"] for q in answerable) / len(answerable)
+        runs.append({"accuracy": acc, "accuracy_answerable": acc_ans, "routes": routes})
+        print(f"  repeat {i}: {acc:.0%}  (answerable only: {acc_ans:.0%})")
 
     accs = [r["accuracy"] for r in runs]
     unstable = [q["id"] for q in golden if len({r["routes"][q["id"]] for r in runs}) > 1]
@@ -49,6 +51,7 @@ def main() -> None:
             "router_accuracy_mean": statistics.mean(accs),
             "router_accuracy_min": min(accs),
             "router_accuracy_max": max(accs),
+            "router_accuracy_answerable_mean": statistics.mean(r["accuracy_answerable"] for r in runs),
         },
         "unstable": unstable,
         "always_wrong": always_wrong,
