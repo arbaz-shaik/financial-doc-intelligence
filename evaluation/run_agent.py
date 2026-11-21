@@ -38,7 +38,7 @@ def load_done() -> dict[str, dict]:
         for line in OUT.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 r = json.loads(line)
-                if "llm_failure" not in r["risk_flags"]:
+                if "llm_failure" not in r["risk_flags"] and not r.get("error"):
                     done[r["id"]] = r
     return done
 
@@ -77,6 +77,7 @@ def main() -> None:
             "source_ids": source_ids,
             "contexts": [chunk_text.get(cid, "") for cid in source_ids],
             "risk_flags": result.get("risk_flags") or [],
+            "error": result.get("error"),
             "latency_s": round(latency, 2),
         }
         done[q["id"]] = record
@@ -88,7 +89,7 @@ def main() -> None:
             encoding="utf-8",
         )
 
-        status = "LLM FAILURE" if "llm_failure" in record["risk_flags"] else "ok"
+        status = "FAILED" if record["error"] or "llm_failure" in record["risk_flags"] else "ok"
         print(
             f"[{i}/{len(todo)}] {q['id']} route={record['route']} {latency:.1f}s {status}"
         )

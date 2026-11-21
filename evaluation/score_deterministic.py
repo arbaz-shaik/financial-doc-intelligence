@@ -95,6 +95,20 @@ def compute(golden: dict[str, dict], answers: dict[str, dict]) -> dict:
 
 def main() -> None:
     golden, answers = load(GOLDEN_FILE), load(ANSWERS)
+    failed = [
+        q
+        for q, a in answers.items()
+        if a.get("error") or "llm_failure" in a.get("risk_flags", [])
+    ]
+    if failed:
+        raise SystemExit(
+            f"Incomplete run: {len(failed)} failed questions {failed}. Re-run run_agent to retry them."
+        )
+    missing = [q for q in golden if q not in answers]
+    if missing:
+        raise SystemExit(
+            f"Incomplete run: {len(missing)} questions have no answer {missing}. Run run_agent first."
+        )
     s = compute(golden, answers)
     m = s["metrics"]
     print(f"{s['n']} questions scored\n")
