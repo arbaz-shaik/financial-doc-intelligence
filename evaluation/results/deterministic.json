@@ -1,0 +1,123 @@
+{
+  "n": 30,
+  "metrics": {
+    "routing_accuracy": 0.5666666666666667,
+    "e2e_hit_at_5": 0.5,
+    "abstention_rate_unanswerable": 1.0,
+    "false_abstention_rate": 0.46153846153846156,
+    "latency_median_s": 9.56,
+    "latency_p95_s": 13.42
+  },
+  "routing_by_type": {
+    "sec": [
+      10,
+      18
+    ],
+    "news": [
+      3,
+      4
+    ],
+    "general": [
+      1,
+      4
+    ],
+    "unanswerable": [
+      3,
+      4
+    ]
+  },
+  "misroutes": [
+    {
+      "id": "q02",
+      "expected": "sec",
+      "actual": "general"
+    },
+    {
+      "id": "q03",
+      "expected": "sec",
+      "actual": "news"
+    },
+    {
+      "id": "q04",
+      "expected": "general",
+      "actual": "sec"
+    },
+    {
+      "id": "q06",
+      "expected": "sec",
+      "actual": "news"
+    },
+    {
+      "id": "q07",
+      "expected": "sec",
+      "actual": "news"
+    },
+    {
+      "id": "q09",
+      "expected": "sec",
+      "actual": "news"
+    },
+    {
+      "id": "q11",
+      "expected": "sec",
+      "actual": "general"
+    },
+    {
+      "id": "q12",
+      "expected": "sec",
+      "actual": "news"
+    },
+    {
+      "id": "q16",
+      "expected": "general",
+      "actual": "sec"
+    },
+    {
+      "id": "q17",
+      "expected": "general",
+      "actual": "sec"
+    },
+    {
+      "id": "q21",
+      "expected": "sec",
+      "actual": "general"
+    },
+    {
+      "id": "q25",
+      "expected": "news",
+      "actual": "sec"
+    },
+    {
+      "id": "q26",
+      "expected": "sec",
+      "actual": "news"
+    }
+  ],
+  "e2e_misses": [
+    "q03",
+    "q06",
+    "q07",
+    "q09",
+    "q12",
+    "q13",
+    "q14",
+    "q25",
+    "q26",
+    "q28",
+    "q29"
+  ],
+  "false_abstentions": [
+    "q03",
+    "q06",
+    "q07",
+    "q09",
+    "q12",
+    "q13",
+    "q16",
+    "q17",
+    "q25",
+    "q26",
+    "q28",
+    "q29"
+  ]
+}

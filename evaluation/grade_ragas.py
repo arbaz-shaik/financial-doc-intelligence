@@ -30,15 +30,17 @@ import sys
 import time
 from pathlib import Path
 
+from evaluation.paths import GOLDEN_FILE, RUN_DIR
+
 from dotenv import load_dotenv
 from openai import OpenAI
 from ragas.llms import llm_factory
 from ragas.metrics.collections import FactualCorrectness, Faithfulness
 
 JUDGE = "qwen/qwen3.8-27b"
-GOLDEN = Path("evaluation/golden_set.jsonl")
-ANSWERS = Path("evaluation/results/answers.jsonl")
-OUT = Path("evaluation/results/ragas_scores.jsonl")
+GOLDEN = GOLDEN_FILE
+ANSWERS = RUN_DIR / "answers.jsonl"
+OUT = RUN_DIR / "ragas_scores.jsonl"
 METRICS = ("faithfulness", "reference_coverage")
 
 

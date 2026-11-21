@@ -1,0 +1,28 @@
+{
+  "n": 22,
+  "metrics": {
+    "retrieval_hit_at_1": 0.5,
+    "retrieval_hit_at_3": 0.7727272727272727,
+    "retrieval_hit_at_5": 0.8181818181818182,
+    "retrieval_hit_at_10": 0.8636363636363636,
+    "retrieval_mrr_at_10": 0.6300505050505051
+  },
+  "misses_top5": [
+    {
+      "id": "q13",
+      "rank": null
+    },
+    {
+      "id": "q14",
+      "rank": null
+    },
+    {
+      "id": "q28",
+      "rank": 9
+    },
+    {
+      "id": "q29",
+      "rank": null
+    }
+  ]
+}

@@ -12,10 +12,12 @@ import json
 import time
 from pathlib import Path
 
+from evaluation.paths import GOLDEN_FILE, RUN_DIR
+
 from src.agent.graph import app as agent
 
-GOLDEN = Path("evaluation/golden_set.jsonl")
-OUT = Path("evaluation/results/answers.jsonl")
+GOLDEN = GOLDEN_FILE
+OUT = RUN_DIR / "answers.jsonl"
 PAUSE_SECONDS = (
     6  # between questions: about 3 LLM calls each, kept under free-tier rate limits
 )

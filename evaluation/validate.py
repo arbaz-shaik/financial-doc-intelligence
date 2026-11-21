@@ -80,11 +80,15 @@ for row in rows:
             problems.append(
                 f"{qid}: evidence quote not found verbatim in its expected chunks"
             )
-prefix = rows[0]["id"].rstrip("0123456789") if rows else "q"  # "q" for the golden set, "h" for the holdout
+prefix = (
+    rows[0]["id"].rstrip("0123456789") if rows else "q"
+)  # "q" for the golden set, "h" for the holdout
 expected = {f"{prefix}{i:02d}" for i in range(1, len(rows) + 1)}
 gaps = sorted(expected - seen)
 if gaps:
-    problems.append(f"missing ids in the {prefix}01..{prefix}{len(rows):02d} sequence: {gaps}")
+    problems.append(
+        f"missing ids in the {prefix}01..{prefix}{len(rows):02d} sequence: {gaps}"
+    )
 counts = {t: sum(r.get("type") == t for r in rows) for t in sorted(TYPES)}
 print(f"{len(rows)} questions  {counts}")
 print("\n".join(problems) if problems else "All checks passed.")

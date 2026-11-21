@@ -46,9 +46,20 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
-
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+    ports: ["5001:5000"]
+    volumes:
+      - mlflow_data:/mlflow
 
 volumes:
   chromadb_data:
   prometheus_data:
   grafana_data:
+  mlflow_data:

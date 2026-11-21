@@ -5,6 +5,8 @@
 - abstention: unanswerable questions should abstain; answerable ones shouldn't
 - latency
 
+Writes RUN_DIR/deterministic.json (metrics for logging) and prints a summary.
+
 Usage: python -m evaluation.score_deterministic
 """
 
@@ -13,8 +15,9 @@ import statistics
 from collections import Counter
 from pathlib import Path
 
-GOLDEN = Path("evaluation/golden_set.jsonl")
-ANSWERS = Path("evaluation/results/answers.jsonl")
+from evaluation.paths import GOLDEN_FILE, RUN_DIR
+
+ANSWERS = RUN_DIR / "answers.jsonl"
 ABSTAIN_PHRASES = (
     "don't have enough information",
     "do not have enough information",
@@ -36,64 +39,93 @@ def abstained(answer: str) -> bool:
     return any(p in text for p in ABSTAIN_PHRASES)
 
 
-def main() -> None:
-    golden, answers = load(GOLDEN), load(ANSWERS)
-    ids = [qid for qid in golden if qid in answers]
-    print(f"{len(ids)} questions scored\n")
-
-    # Routing
+def compute(golden: dict[str, dict], answers: dict[str, dict]) -> dict:
+    """All deterministic metrics, plus the details behind them."""
+    ids = [q for q in golden if q in answers]
     correct = [q for q in ids if answers[q]["route"] == golden[q]["expected_route"]]
-    print(
-        f"Routing accuracy: {len(correct) / len(ids):.0%} ({len(correct)}/{len(ids)})"
-    )
-    for t in ("sec", "news", "general", "unanswerable"):
-        of_type = [q for q in ids if golden[q]["type"] == t]
-        ok = [q for q in of_type if q in correct]
-        print(f"  {t:<13} {len(ok)}/{len(of_type)}")
-    confusions = Counter(
-        (golden[q]["expected_route"], answers[q]["route"])
-        for q in ids
-        if q not in correct
-    )
-    print("  Misroutes (expected -> actual):")
-    for (exp, act), n in confusions.most_common():
-        qs = [
-            q
-            for q in ids
-            if q not in correct
-            and golden[q]["expected_route"] == exp
-            and answers[q]["route"] == act
-        ]
-        print(f"    {exp} -> {act}: {n}  {qs}")
-
-    # End-to-end retrieval: what the agent actually used (after routing + reranking)
     with_chunks = [q for q in ids if golden[q]["expected_chunk_ids"]]
     hits = [
         q
         for q in with_chunks
         if set(answers[q]["source_ids"]) & set(golden[q]["expected_chunk_ids"])
     ]
-    print(
-        f"\nEnd-to-end hit@5: {len(hits) / len(with_chunks):.0%} ({len(hits)}/{len(with_chunks)})"
-    )
-    print(f"  Misses: {[q for q in with_chunks if q not in hits]}")
-
-    # Abstention
     unans = [q for q in ids if golden[q]["type"] == "unanswerable"]
     answerable = [q for q in ids if golden[q]["type"] != "unanswerable"]
-    good = [q for q in unans if abstained(answers[q]["answer"])]
-    false_abst = [q for q in answerable if abstained(answers[q]["answer"])]
+    lat = sorted(answers[q]["latency_s"] for q in ids)
+
+    return {
+        "n": len(ids),
+        "metrics": {
+            "routing_accuracy": len(correct) / len(ids),
+            "e2e_hit_at_5": len(hits) / len(with_chunks) if with_chunks else 0.0,
+            "abstention_rate_unanswerable": (
+                sum(abstained(answers[q]["answer"]) for q in unans) / len(unans)
+                if unans
+                else 0.0
+            ),
+            "false_abstention_rate": (
+                sum(abstained(answers[q]["answer"]) for q in answerable)
+                / len(answerable)
+                if answerable
+                else 0.0
+            ),
+            "latency_median_s": statistics.median(lat),
+            "latency_p95_s": lat[max(0, int(round(0.95 * len(lat))) - 1)],
+        },
+        "routing_by_type": {
+            t: [
+                sum(q in correct for q in ids if golden[q]["type"] == t),
+                sum(1 for q in ids if golden[q]["type"] == t),
+            ]
+            for t in ("sec", "news", "general", "unanswerable")
+        },
+        "misroutes": [
+            {
+                "id": q,
+                "expected": golden[q]["expected_route"],
+                "actual": answers[q]["route"],
+            }
+            for q in ids
+            if q not in correct
+        ],
+        "e2e_misses": [q for q in with_chunks if q not in hits],
+        "false_abstentions": [q for q in answerable if abstained(answers[q]["answer"])],
+    }
+
+
+def main() -> None:
+    golden, answers = load(GOLDEN_FILE), load(ANSWERS)
+    s = compute(golden, answers)
+    m = s["metrics"]
+    print(f"{s['n']} questions scored\n")
+
+    print(f"Routing accuracy: {m['routing_accuracy']:.0%}")
+    for t, (ok, total) in s["routing_by_type"].items():
+        print(f"  {t:<13} {ok}/{total}")
+    print("  Misroutes (expected -> actual):")
+    for (exp, act), n in Counter(
+        (x["expected"], x["actual"]) for x in s["misroutes"]
+    ).most_common():
+        qs = [
+            x["id"]
+            for x in s["misroutes"]
+            if x["expected"] == exp and x["actual"] == act
+        ]
+        print(f"    {exp} -> {act}: {n}  {qs}")
+
+    print(f"\nEnd-to-end hit@5: {m['e2e_hit_at_5']:.0%}")
+    print(f"  Misses: {s['e2e_misses']}")
+    print(f"\nAbstention on unanswerable: {m['abstention_rate_unanswerable']:.0%}")
     print(
-        f"\nAbstention on unanswerable: {len(good)}/{len(unans)}  (missed: {[q for q in unans if q not in good]})"
+        f"False abstention on answerable: {m['false_abstention_rate']:.0%}  {s['false_abstentions']}"
     )
     print(
-        f"False abstention on answerable: {len(false_abst)}/{len(answerable)}  {false_abst}"
+        f"\nLatency: median {m['latency_median_s']:.1f}s, p95 {m['latency_p95_s']:.1f}s"
     )
 
-    # Latency
-    lat = sorted(answers[q]["latency_s"] for q in ids)
-    p95 = lat[max(0, int(round(0.95 * len(lat))) - 1)]
-    print(f"\nLatency: median {statistics.median(lat):.1f}s, p95 {p95:.1f}s")
+    (RUN_DIR / "deterministic.json").write_text(
+        json.dumps(s, indent=2), encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

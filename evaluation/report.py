@@ -16,11 +16,13 @@ import json
 import statistics
 from pathlib import Path
 
+from evaluation.paths import GOLDEN_FILE, RUN_DIR
+
 from evaluation.score_deterministic import abstained
 
-GOLDEN = Path("evaluation/golden_set.jsonl")
-ANSWERS = Path("evaluation/results/answers.jsonl")
-RAGAS = Path("evaluation/results/ragas_scores.jsonl")
+GOLDEN = GOLDEN_FILE
+ANSWERS = RUN_DIR / "answers.jsonl"
+RAGAS = RUN_DIR / "ragas_scores.jsonl"
 
 
 def load(path: Path) -> dict[str, dict]:
