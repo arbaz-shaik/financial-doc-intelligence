@@ -26,8 +26,14 @@ def first_hit_rank(retrieved: list[str], expected: set[str]) -> int | None:
 
 
 def main() -> None:
-    rows = [json.loads(line) for line in GOLDEN.read_text(encoding="utf-8").splitlines() if line.strip()]
-    rows = [r for r in rows if r["expected_chunk_ids"]]  # only sec/news questions have expected chunks
+    rows = [
+        json.loads(line)
+        for line in GOLDEN.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    rows = [
+        r for r in rows if r["expected_chunk_ids"]
+    ]  # only sec/news questions have expected chunks
 
     embedder, store = Embedder(), VectorStore()
     results = []

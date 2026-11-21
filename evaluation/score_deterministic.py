@@ -15,12 +15,19 @@ from pathlib import Path
 
 GOLDEN = Path("evaluation/golden_set.jsonl")
 ANSWERS = Path("evaluation/results/answers.jsonl")
-ABSTAIN_PHRASES = ("don't have enough information", "do not have enough information",
-                   "not enough information")
+ABSTAIN_PHRASES = (
+    "don't have enough information",
+    "do not have enough information",
+    "not enough information",
+)
 
 
 def load(path: Path) -> dict[str, dict]:
-    rows = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    rows = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     return {r["id"]: r for r in rows}
 
 
@@ -36,22 +43,39 @@ def main() -> None:
 
     # Routing
     correct = [q for q in ids if answers[q]["route"] == golden[q]["expected_route"]]
-    print(f"Routing accuracy: {len(correct) / len(ids):.0%} ({len(correct)}/{len(ids)})")
+    print(
+        f"Routing accuracy: {len(correct) / len(ids):.0%} ({len(correct)}/{len(ids)})"
+    )
     for t in ("sec", "news", "general", "unanswerable"):
         of_type = [q for q in ids if golden[q]["type"] == t]
         ok = [q for q in of_type if q in correct]
         print(f"  {t:<13} {len(ok)}/{len(of_type)}")
-    confusions = Counter((golden[q]["expected_route"], answers[q]["route"]) for q in ids if q not in correct)
+    confusions = Counter(
+        (golden[q]["expected_route"], answers[q]["route"])
+        for q in ids
+        if q not in correct
+    )
     print("  Misroutes (expected -> actual):")
     for (exp, act), n in confusions.most_common():
-        qs = [q for q in ids if q not in correct and golden[q]["expected_route"] == exp and answers[q]["route"] == act]
+        qs = [
+            q
+            for q in ids
+            if q not in correct
+            and golden[q]["expected_route"] == exp
+            and answers[q]["route"] == act
+        ]
         print(f"    {exp} -> {act}: {n}  {qs}")
 
     # End-to-end retrieval: what the agent actually used (after routing + reranking)
     with_chunks = [q for q in ids if golden[q]["expected_chunk_ids"]]
-    hits = [q for q in with_chunks
-            if set(answers[q]["source_ids"]) & set(golden[q]["expected_chunk_ids"])]
-    print(f"\nEnd-to-end hit@5: {len(hits) / len(with_chunks):.0%} ({len(hits)}/{len(with_chunks)})")
+    hits = [
+        q
+        for q in with_chunks
+        if set(answers[q]["source_ids"]) & set(golden[q]["expected_chunk_ids"])
+    ]
+    print(
+        f"\nEnd-to-end hit@5: {len(hits) / len(with_chunks):.0%} ({len(hits)}/{len(with_chunks)})"
+    )
     print(f"  Misses: {[q for q in with_chunks if q not in hits]}")
 
     # Abstention
@@ -59,8 +83,12 @@ def main() -> None:
     answerable = [q for q in ids if golden[q]["type"] != "unanswerable"]
     good = [q for q in unans if abstained(answers[q]["answer"])]
     false_abst = [q for q in answerable if abstained(answers[q]["answer"])]
-    print(f"\nAbstention on unanswerable: {len(good)}/{len(unans)}  (missed: {[q for q in unans if q not in good]})")
-    print(f"False abstention on answerable: {len(false_abst)}/{len(answerable)}  {false_abst}")
+    print(
+        f"\nAbstention on unanswerable: {len(good)}/{len(unans)}  (missed: {[q for q in unans if q not in good]})"
+    )
+    print(
+        f"False abstention on answerable: {len(false_abst)}/{len(answerable)}  {false_abst}"
+    )
 
     # Latency
     lat = sorted(answers[q]["latency_s"] for q in ids)

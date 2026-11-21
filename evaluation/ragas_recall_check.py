@@ -19,7 +19,9 @@ load_dotenv()
 llm = llm_factory(
     "qwen/qwen3.8-27b",
     provider="openai",
-    client=OpenAI(api_key=os.environ["GROQ_API_KEY"], base_url="https://api.groq.com/openai/v1"),
+    client=OpenAI(
+        api_key=os.environ["GROQ_API_KEY"], base_url="https://api.groq.com/openai/v1"
+    ),
     max_tokens=950,
 )
 fc = FactualCorrectness(llm=llm)
@@ -36,7 +38,10 @@ def reference_coverage(reference: str, answer: str) -> float:
 
 
 def load(path: str) -> dict[str, dict]:
-    return {r["id"]: r for r in map(json.loads, Path(path).read_text(encoding="utf-8").splitlines())}
+    return {
+        r["id"]: r
+        for r in map(json.loads, Path(path).read_text(encoding="utf-8").splitlines())
+    }
 
 
 ref = load("evaluation/golden_set.jsonl")["q01"]["reference_answer"]

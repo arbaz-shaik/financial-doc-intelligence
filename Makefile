@@ -12,3 +12,19 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+EVAL_PY ?= .venv-eval/Scripts/python.exe
+
+# Free and deterministic: no LLM calls (main .venv)
+eval:
+	python -m evaluation.validate
+	python -m evaluation.retrieval_check
+	python -m evaluation.score_deterministic
+	python -m evaluation.report
+
+# Costly: real LLM calls, slow, rate-limited (run deliberately)
+eval-run:
+	python -m evaluation.run_agent
+
+eval-grade:
+	$(EVAL_PY) -m evaluation.grade_ragas

@@ -16,7 +16,9 @@ from src.agent.graph import app as agent
 
 GOLDEN = Path("evaluation/golden_set.jsonl")
 OUT = Path("evaluation/results/answers.jsonl")
-PAUSE_SECONDS = 6  # between questions: about 3 LLM calls each, kept under free-tier rate limits
+PAUSE_SECONDS = (
+    6  # between questions: about 3 LLM calls each, kept under free-tier rate limits
+)
 
 # Full chunk text by ID, so stored contexts are complete
 chunk_text = {}
@@ -41,20 +43,26 @@ def load_done() -> dict[str, dict]:
 
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    golden = [json.loads(l) for l in GOLDEN.read_text(encoding="utf-8").splitlines() if l.strip()]
+    golden = [
+        json.loads(line)
+        for line in GOLDEN.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     done = load_done()
     todo = [q for q in golden if q["id"] not in done]
     print(f"{len(done)} already answered, {len(todo)} to run")
 
     for i, q in enumerate(todo, start=1):
         start = time.perf_counter()
-        result = agent.invoke(input={
-            "question": q["question"],
-            "chat_history": [],
-            "top_k": 5,
-            "source_filter": None,
-            "date_from": None,
-        })
+        result = agent.invoke(
+            input={
+                "question": q["question"],
+                "chat_history": [],
+                "top_k": 5,
+                "source_filter": None,
+                "date_from": None,
+            }
+        )
         latency = time.perf_counter() - start
 
         source_ids = [s["chunk_id"] for s in result.get("sources", [])]
@@ -73,10 +81,15 @@ def main() -> None:
 
         # Rewrite the whole file each time: one line per question, latest result wins
         ordered = [done[g["id"]] for g in golden if g["id"] in done]
-        OUT.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in ordered) + "\n", encoding="utf-8")
+        OUT.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in ordered) + "\n",
+            encoding="utf-8",
+        )
 
         status = "LLM FAILURE" if "llm_failure" in record["risk_flags"] else "ok"
-        print(f"[{i}/{len(todo)}] {q['id']} route={record['route']} {latency:.1f}s {status}")
+        print(
+            f"[{i}/{len(todo)}] {q['id']} route={record['route']} {latency:.1f}s {status}"
+        )
         time.sleep(PAUSE_SECONDS)
 
     print(f"\nSaved {len(done)} results to {OUT}")

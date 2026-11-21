@@ -14,4 +14,13 @@
 {"id": "q15", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.4, "error": null}}
 {"id": "q16", "type": "general", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
 {"id": "q17", "type": "general", "faithfulness": {"value": 0.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
-{"id": "q18", "type": "general", "faithfulness": {"value": null, "error": "InstructorRetryException: <failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    The output is incomplete due to a max_tokens length limit.\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-249dea52-5346-4855-b6d5-"}, "reference_coverage": {"value": null, "error": "RuntimeError: still rate limited after retries"}}
+{"id": "q18", "type": "general", "faithfulness": {"value": null, "error": "InstructorRetryException: <failed_attempts>\n\n<generation number=\"1\">\n<exception>\n    The output is incomplete due to a max_tokens length limit.\n</exception>\n<completion>\n    ChatCompletion(id='chatcmpl-a4ec9358-5b2b-46e9-9f00-"}, "reference_coverage": {"value": 0.5, "error": null}}
+{"id": "q22", "type": "news", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.5, "error": null}}
+{"id": "q23", "type": "news", "faithfulness": {"value": 0.6666666666666666, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q24", "type": "news", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q25", "type": "news", "faithfulness": {"value": 0.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q26", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q27", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 1.0, "error": null}}
+{"id": "q28", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q29", "type": "sec", "faithfulness": {"value": 0.0, "error": null}, "reference_coverage": {"value": 0.0, "error": null}}
+{"id": "q30", "type": "sec", "faithfulness": {"value": 1.0, "error": null}, "reference_coverage": {"value": 0.2, "error": null}}

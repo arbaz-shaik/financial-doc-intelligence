@@ -21,7 +21,7 @@ for path in sorted(Path("data/chunks").glob("*.jsonl")):
         if all(w in lower for w in words):
             hits += 1
             pos = lower.find(words[0])
-            snippet = text[max(0, pos - 80): pos + 160].replace("\n", " ")
+            snippet = text[max(0, pos - 80) : pos + 160].replace("\n", " ")
             print(f"{chunk['chunk_id']}  [{chunk['source']}]\n    ...{snippet}...\n")
 
 print(f"{hits} matching chunk(s)")
