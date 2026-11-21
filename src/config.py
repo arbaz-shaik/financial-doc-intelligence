@@ -25,5 +25,8 @@ class Settings(BaseSettings):
     index_on_startup: bool = False
     router_prompt_version: str = "v1"
     latest_filing_fiscal_year: int = 2025  # most recent annual report in the index
+    retrieval_mode: str = "vector"  # "vector" or "hybrid" (vector + BM25, fused with RRF)
+    hybrid_pool: int = 20           # candidates taken from each method before fusion
+    rrf_k: int = 60                 # Reciprocal Rank Fusion damping constant
 
 settings = Settings()
