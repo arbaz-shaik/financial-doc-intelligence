@@ -89,9 +89,18 @@ def main() -> None:
             encoding="utf-8",
         )
 
-        status = "FAILED" if record["error"] or "llm_failure" in record["risk_flags"] else "ok"
+        status = (
+            "FAILED"
+            if record["error"] or "llm_failure" in record["risk_flags"]
+            else "ok"
+        )
+        print(
+            f"[{i}/{len(todo)}] {q['id']} route={record['route']} {latency:.1f}s {status}"
+        )
         if record["error"] and "per day" in record["error"]:
-            print("\nDaily token limit reached: stopping. Re-run later; only unfinished questions will run.")
+            print(
+                "\nDaily token limit reached: stopping. Re-run later; only unfinished questions will run."
+            )
             break
         time.sleep(PAUSE_SECONDS)
 
