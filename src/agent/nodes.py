@@ -40,7 +40,9 @@ def get_reranker() -> Reranker:
 
 def router(state: AgentState) -> dict:
     try: 
-            system_prompt = ROUTER_PROMPTS[settings.router_prompt_version]
+            system_prompt = ROUTER_PROMPTS[settings.router_prompt_version].replace(
+                "{latest_fiscal_year}", str(settings.latest_filing_fiscal_year)
+            )
 
             user_prompt = f"Question: {state['question']}"
 

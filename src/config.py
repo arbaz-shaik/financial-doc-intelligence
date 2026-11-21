@@ -24,6 +24,6 @@ class Settings(BaseSettings):
     aws_region: str = "eu-north-1"
     index_on_startup: bool = False
     router_prompt_version: str = "v1"
-
+    latest_filing_fiscal_year: int = 2025  # most recent annual report in the index
 
 settings = Settings()
