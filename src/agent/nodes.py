@@ -1,10 +1,11 @@
 from src.rag.embedder import Embedder
 from src.rag.vector_store import VectorStore
-from src.rag.llm import LLM
-from src.rag.prompts import RAG_TEST_PROMPT_V3
 from src.rag.reranker import Reranker
 from src.agent.state import AgentState
 from src.logger import get_logger
+from src.rag.llm import LLM
+from src.rag.prompts import RAG_TEST_PROMPT_V3, ROUTER_PROMPTS
+from src.config import settings
 
 logger = get_logger(__name__)
 _store =  None
@@ -39,21 +40,7 @@ def get_reranker() -> Reranker:
 
 def router(state: AgentState) -> dict:
     try: 
-            system_prompt = """
-        You are a professional financial analyst with 15 years of experience.
-
-        Your task is to classify a user’s question into one of the following categories:
-
-        Categories:
-        - sec: Questions about filings, financial statements, risk factors, revenue, earnings, or annual reports
-        - news: Questions about recent events, headlines, market movements, or breaking news
-        - general: All other questions, including broad topics or comparisons
-
-        Rules:
-        - Respond with ONLY one word: sec, news, or general
-        - Do NOT provide any explanation or additional text
-        - If unsure, respond with: general
-        """
+            system_prompt = ROUTER_PROMPTS[settings.router_prompt_version]
 
             user_prompt = f"Question: {state['question']}"
 

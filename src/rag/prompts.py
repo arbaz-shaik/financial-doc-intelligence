@@ -32,3 +32,22 @@ Answer:
 """
 
 
+# Router prompts. v1 is the 6.1 baseline, kept byte-for-byte (including the
+# mis-encoded apostrophe), so the baseline stays reproducible.
+ROUTER_PROMPT_V1 = """
+        You are a professional financial analyst with 15 years of experience.
+
+        Your task is to classify a userâ€™s question into one of the following categories:
+
+        Categories:
+        - sec: Questions about filings, financial statements, risk factors, revenue, earnings, or annual reports
+        - news: Questions about recent events, headlines, market movements, or breaking news
+        - general: All other questions, including broad topics or comparisons
+
+        Rules:
+        - Respond with ONLY one word: sec, news, or general
+        - Do NOT provide any explanation or additional text
+        - If unsure, respond with: general
+        """
+
+ROUTER_PROMPTS = {"v1": ROUTER_PROMPT_V1}

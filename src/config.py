@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     s3_prefix: str = "chunks"
     aws_region: str = "eu-north-1"
     index_on_startup: bool = False
+    router_prompt_version: str = "v1"
 
 
 settings = Settings()

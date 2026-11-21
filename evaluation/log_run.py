@@ -59,7 +59,7 @@ def main() -> None:
     args = parser.parse_args()
 
     metrics: dict[str, float] = {}
-    for name in ("retrieval.json", "deterministic.json"):
+    for name in ("retrieval.json", "deterministic.json", "router.json"):
         f = args.run_dir / name
         if f.exists():
             metrics.update(json.loads(f.read_text(encoding="utf-8"))["metrics"])
